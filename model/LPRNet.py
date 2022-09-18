@@ -16,6 +16,24 @@ class small_basic_block(nn.Module):
     def forward(self, x):
         return self.block(x)
 
+
+class maxpool_3d(nn.Module):
+    def __init__(self, kernel_size3d, stride3d):
+        super(maxpool_3d, self).__init__()
+        assert(len(kernel_size3d)==3 and len(stride3d)==3)
+        kernel_size2d1 = kernel_size3d[-2:]
+        stride2d1 = stride3d[-2:]
+        kernel_size2d2 = (kernel_size3d[0],kernel_size3d[0])
+        stride2d2 = (kernel_size3d[0], stride3d[0])
+        self.maxpool1 = nn.MaxPool2d(kernel_size=kernel_size2d1, stride=stride2d1)
+        self.maxpool2 = nn.MaxPool2d(kernel_size=kernel_size2d2, stride=stride2d2)
+    def forward(self,x):
+        x = self.maxpool1(x)
+        x = x.transpose(1,3)
+        x = self.maxpool2(x)
+        x = x.transpose(1,3)
+        return x 
+
 class LPRNet(nn.Module):
     def __init__(self, lpr_max_len, phase, class_num, dropout_rate):
         super(LPRNet, self).__init__()
@@ -26,18 +44,18 @@ class LPRNet(nn.Module):
             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1), # 0
             nn.BatchNorm2d(num_features=64),
             nn.ReLU(),  # 2
-            nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 1, 1)),
+            nn.MaxPool2d(kernel_size=(3, 3), stride=(1, 1)),
             small_basic_block(ch_in=64, ch_out=128),    # *** 4 ***
             nn.BatchNorm2d(num_features=128),
             nn.ReLU(),  # 6
-            nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(2, 1, 2)),
+            maxpool_3d(kernel_size3d=(1, 3, 3), stride3d=(2, 1, 2)),
             small_basic_block(ch_in=64, ch_out=256),   # 8
             nn.BatchNorm2d(num_features=256),
             nn.ReLU(),  # 10
             small_basic_block(ch_in=256, ch_out=256),   # *** 11 ***
             nn.BatchNorm2d(num_features=256),   # 12
             nn.ReLU(),
-            nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(4, 1, 2)),  # 14
+            maxpool_3d(kernel_size3d=(1, 3, 3), stride3d=(4, 1, 2)),  # 14
             nn.Dropout(dropout_rate),
             nn.Conv2d(in_channels=64, out_channels=256, kernel_size=(1, 4), stride=1),  # 16
             nn.BatchNorm2d(num_features=256),
